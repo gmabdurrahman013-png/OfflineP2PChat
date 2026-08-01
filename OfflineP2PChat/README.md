@@ -1,31 +1,35 @@
-# Offline P2P Chat (Android, Kotlin)
+name: Android CI Build
 
-ইন্টারনেট বা সিম নেটওয়ার্ক ছাড়াই দুটি ফোনের মধ্যে সরাসরি (Bluetooth / Wi-Fi Direct) টেক্সট ও ছবি আদান-প্রদানের অ্যাপ। এটা Google-এর **Nearby Connections API** ব্যবহার করে — যা ছোট মেসেজের জন্য Bluetooth এবং ছবির মতো বড় ফাইলের জন্য স্বয়ংক্রিয়ভাবে Wi-Fi Direct চালু করে দেয়।
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
 
-## যা যা তৈরি করা হয়েছে
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-- `NearbyManager.kt` — advertise/discover/connect ও টেক্সট-ছবি পাঠানো-নেওয়ার মূল ইঞ্জিন
-- `data/` — Room ডেটাবেস (অফলাইনে চ্যাট হিস্ট্রি ফোনে সেভ থাকবে)
-- `ui/DeviceListScreen.kt` — আশেপাশের ডিভাইস খুঁজে দেখানোর স্ক্রিন
-- `ui/ChatScreen.kt` — মেসেজ পাঠানো/দেখার চ্যাট UI
-- `MainActivity.kt` — পারমিশন হ্যান্ডলিং + সব কিছু একসাথে জোড়া
+    steps:
+      - uses: actions/checkout@v4
 
-## চালু করবেন যেভাবে
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-1. **Android Studio** (Hedgehog বা তার পরের ভার্সন) ইন্সটল থাকতে হবে।
-2. এই পুরো `OfflineP2PChat` ফোল্ডারটা **Open an existing project** দিয়ে খুলুন।
-3. Gradle sync হতে দিন (প্রথমবার ইন্টারনেট লাগবে ডিপেন্ডেন্সি ডাউনলোডের জন্য — এটা শুধু এক-বারের development setup, অ্যাপ নিজে চালানোর সময় ইন্টারনেট লাগে না)।
-4. **দুটি আলাদা আসল অ্যান্ড্রয়েড ফোনে** (এমুলেটরে Bluetooth/Wi-Fi Direct কাজ করে না) অ্যাপটা ইন্সটল করুন।
-5. দুই ফোনেই অ্যাপ খুললে পারমিশন চাইবে — Allow করুন। এরপর দুটো ফোন স্বয়ংক্রিয়ভাবে একে অপরকে "Nearby Devices" লিস্টে খুঁজে পাবে (কাছাকাছি রাখলে, সাধারণত কয়েক মিটারের মধ্যে)।
-6. একটা ফোন থেকে অন্যটাতে ট্যাপ করে **Connect** করুন। কানেক্ট হয়ে গেলে চ্যাট শুরু করা যাবে — টেক্সট বা 🖼️ আইকনে ট্যাপ করে ছবি পাঠানো যাবে।
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+        working-directory: OfflineP2PChat
 
-## মিনিমাম রিকোয়ারমেন্ট
+      - name: Build debug APK with Gradle
+        run: ./gradlew assembleDebug
+        working-directory: OfflineP2PChat
 
-- Android 8.0 (API 26) বা তার উপরে
-- ফোনে Bluetooth ও Wi-Fi অন থাকতে হবে (Wi-Fi রাউটার/ইন্টারনেট লাগবে না — শুধু Wi-Fi রেডিও অন থাকলেই Wi-Fi Direct কাজ করে)
-
-## পরবর্তী উন্নতির জন্য (আগের প্ল্যান অনুযায়ী)
-
-- **Mesh relay**: A→B→C এর মাধ্যমে মেসেজ পাঠানো (`NearbyManager`-এ payload relay লজিক যোগ করে)
-- **End-to-end encryption**: `sendText`/`sendImage`-এ পাঠানোর আগে AES দিয়ে এনক্রিপ্ট করা
-- **Connection confirmation UI**: বর্তমানে অটো-অ্যাকসেপ্ট করে; production-এ `ConnectionInfo.authenticationDigits` দেখিয়ে ইউজারকে কনফার্ম করতে বলা উচিত
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: OfflineP2PChat/app/build/outputs/apk/debug/app-debug.apk
